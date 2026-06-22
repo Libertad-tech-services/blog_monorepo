@@ -1,74 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { adminRequest } from "../../api/adminApi";
-import { uploadImage, uploadDocument } from "../../api/cloudinaryApi";
+import { uploadImageToCloudinary } from "../../api/cloudinaryApi";
 import { RichTextEditor } from "../../components/RichTextEditor";
 import {PostPreviewModal} from "../../components/PostPreviewModal";
-
-function normalizeEmbeddedMedia(html: string): string {
-    try {
-        if (!html || html.trim().length === 0) return html;
-
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(html, "text/html");
-
-        const wrapElement = (el: HTMLElement) => {
-            // Remover atributos que forçam tamanho fixo
-            if (el.hasAttribute("width")) el.removeAttribute("width");
-            if (el.hasAttribute("height")) el.removeAttribute("height");
-
-            // Tornar responsivo
-            el.classList.add("blog-embedded-media");
-            el.style.width = "100%";
-            el.style.height = "auto";
-            el.style.setProperty("aspect-ratio", "16 / 9");
-
-            const parent = el.parentElement;
-            if (parent && parent.classList.contains("blog-media-wrapper")) {
-                return;
-            }
-
-            const wrapper = doc.createElement("div");
-            wrapper.className = "blog-media-wrapper";
-            wrapper.style.maxWidth = "800px";
-            wrapper.style.width = "100%";
-            wrapper.style.margin = "1rem auto";
-
-            if (parent) {
-                parent.replaceChild(wrapper, el);
-                wrapper.appendChild(el);
-            } else {
-                // fallback: anexar ao body caso não exista pai (situação improvável)
-                wrapper.appendChild(el);
-                doc.body.appendChild(wrapper);
-            }
-        };
-
-        // Vídeos nativos
-        doc.querySelectorAll("video").forEach((node) => {
-            const video = node as HTMLVideoElement;
-            video.setAttribute("controls", "");
-            video.setAttribute("playsinline", "");
-            wrapElement(video as unknown as HTMLElement);
-        });
-
-        // Iframes de plataformas de vídeo
-        doc.querySelectorAll("iframe").forEach((node) => {
-            const iframe = node as HTMLIFrameElement;
-            const src = iframe.getAttribute("src") || "";
-            const isVideoPlatform = /youtube\.com|youtu\.be|vimeo\.com|dailymotion\.com|player\./i.test(src) || /cloudinary/i.test(src);
-            if (isVideoPlatform) {
-                wrapElement(iframe as unknown as HTMLElement);
-            }
-        });
-
-        return doc.body.innerHTML;
-    } catch {
-        // Em caso de qualquer erro, retorna o HTML original
-        return html;
-    }
-}
-
 
 interface Category {
     id: number;
@@ -125,12 +60,6 @@ export default function AdminEditPost() {
     const [error, setError] = useState("");
 
     const [previewOpen, setPreviewOpen] = useState(false);
-    const processedContent = useMemo(() => normalizeEmbeddedMedia(content), [content]);
-
-    // Upload de materiais para download (PDFs etc.)
-    const [docFile, setDocFile] = useState<File | null>(null);
-    const [docUrl, setDocUrl] = useState("");
-    const [uploadingDoc, setUploadingDoc] = useState(false);
 
     const selectedCategories = categories.filter((category) =>
         categoryIds.includes(category.id)
@@ -221,7 +150,7 @@ export default function AdminEditPost() {
             setUploadingImage(true);
             setError("");
 
-            const uploadedUrl = await uploadImage(imageFile);
+            const uploadedUrl = await uploadImageToCloudinary(imageFile);
 
             setCoverImageUrl(uploadedUrl);
             setPreviewUrl("");
@@ -232,72 +161,6 @@ export default function AdminEditPost() {
             setUploadingImage(false);
         }
     }
-
-    // --------- Materiais para download (PDFs e afins) ---------
-    function handleDocChange(event: React.ChangeEvent<HTMLInputElement>) {
-        const file = event.target.files?.[0];
-        if (!file) return;
-
-        const allowed =
-            /application\/pdf|application\/msword|application\/vnd\.openxmlformats-officedocument\.wordprocessingml\.document|application\/vnd\.ms-excel|application\/vnd\.openxmlformats-officedocument\.spreadsheetml\.sheet|application\/vnd\.ms-powerpoint|application\/vnd\.openxmlformats-officedocument\.presentationml\.presentation|text\/plain|text\/csv|application\/zip|application\/x-rar-compressed|application\/x-7z-compressed/i;
-
-        if (!allowed.test(file.type)) {
-            setError("Tipo de arquivo não suportado. Envie PDF, DOC(X), XLS(X), PPT(X), TXT, CSV, ZIP, RAR ou 7Z.");
-            return;
-        }
-
-        const maxSizeMb = 15;
-        if (file.size > maxSizeMb * 1024 * 1024) {
-            setError(`O arquivo deve ter no máximo ${maxSizeMb}MB.`);
-            return;
-        }
-
-        setError("");
-        setDocFile(file);
-        setDocUrl("");
-    }
-
-    async function handleUploadDoc() {
-        if (!docFile) {
-            setError("Selecione um arquivo para enviar.");
-            return;
-        }
-
-        try {
-            setUploadingDoc(true);
-            setError("");
-
-            const url = await uploadDocument(docFile);
-            setDocUrl(url);
-        } catch (error) {
-            console.error("Erro no upload do documento:", error);
-            setError("Não foi possível enviar o material para o servidor.");
-        } finally {
-            setUploadingDoc(false);
-        }
-    }
-
-    function buildDownloadBannerHtml(url: string, label?: string) {
-        const safeLabel = (label || "Baixar material").trim();
-        return `<a class="download-banner" href="${url}" target="_blank" rel="noopener" download>${safeLabel}</a>`;
-        }
-
-    async function copyBannerToClipboard() {
-        if (!docUrl) return;
-        const html = buildDownloadBannerHtml(docUrl);
-        try {
-            await navigator.clipboard.writeText(html);
-        } catch {
-            // fallback silencioso
-        }
-    }
-
-    function insertBannerAtEnd() {
-        if (!docUrl) return;
-        const html = buildDownloadBannerHtml(docUrl);
-        setContent((prev) => (prev ? `${prev}\n<p>${html}</p>` : `<p>${html}</p>`));
-    }
-    // -----------------------------------------------------------
 
     async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
         event.preventDefault();
@@ -314,7 +177,7 @@ export default function AdminEditPost() {
             let finalCoverImageUrl = coverImageUrl;
 
             if (imageFile && !coverImageUrl) {
-                finalCoverImageUrl = await uploadImage(imageFile);
+                finalCoverImageUrl = await uploadImageToCloudinary(imageFile);
                 setCoverImageUrl(finalCoverImageUrl);
             }
 
@@ -449,53 +312,6 @@ export default function AdminEditPost() {
                     </div>
 
                     <div className="admin-form-section">
-                        <label>Materiais para download</label>
-
-                        <input
-                            type="file"
-                            onChange={handleDocChange}
-                            accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip,.rar,.7z"
-                        />
-
-                        <div className="editor-actions" style={{ gap: 8, marginTop: 8 }}>
-                            <button
-                                type="button"
-                                className="secondary-admin-button"
-                                onClick={handleUploadDoc}
-                                disabled={!docFile || uploadingDoc}
-                            >
-                                {uploadingDoc ? "Enviando..." : "Enviar material"}
-                            </button>
-
-                            <button
-                                type="button"
-                                className="secondary-admin-button"
-                                onClick={copyBannerToClipboard}
-                                disabled={!docUrl}
-                                title="Copia o banner HTML para colar no editor na posição desejada"
-                            >
-                                Copiar banner HTML
-                            </button>
-
-                            <button
-                                type="button"
-                                className="secondary-admin-button"
-                                onClick={insertBannerAtEnd}
-                                disabled={!docUrl}
-                                title="Insere o banner no final do conteúdo"
-                            >
-                                Inserir no final
-                            </button>
-                        </div>
-
-                        {docUrl && (
-                            <small className="success-message">
-                                Material pronto: <a href={docUrl} target="_blank" rel="noopener">abrir</a>
-                            </small>
-                        )}
-                    </div>
-
-                    <div className="admin-form-section">
                         <label>Categorias</label>
 
                         <div className="category-check-list">
@@ -528,7 +344,7 @@ export default function AdminEditPost() {
                 onClose={() => setPreviewOpen(false)}
                 title={title}
                 summary={summary}
-                content={processedContent}
+                content={content}
                 coverImageUrl={previewUrl || coverImageUrl}
                 categories={selectedCategories}
             />

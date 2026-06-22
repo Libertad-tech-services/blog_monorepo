@@ -20,7 +20,7 @@ export async function adminRequest<T>(
 ): Promise<T> {
     const token = getToken();
 
-    const response = await fetch(`https://libertad-api.onrender.com/api${endpoint}`, {
+    const response = await fetch(`http://localhost:8081/api${endpoint}`, {
         ...options,
         headers: {
             "Content-Type": "application/json",

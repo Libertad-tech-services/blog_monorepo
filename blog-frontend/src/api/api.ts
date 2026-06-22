@@ -1,7 +1,7 @@
 import axios from "axios";
 
 export const api = axios.create({
-  baseURL: "https://libertad-api.onrender.com",
+  baseURL: "http://localhost:8081",
 });
 
 api.interceptors.request.use((config) => {
