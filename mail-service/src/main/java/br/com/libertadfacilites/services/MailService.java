@@ -164,11 +164,6 @@ public class MailService {
             );
 
         } catch (RestClientResponseException ex) {
-            /*
-             * O corpo da resposta da Brevo fica apenas nos logs.
-             * Não exponha detalhes do provedor ou da configuração
-             * diretamente para o usuário do formulário.
-             */
             log.error(
                     "Erro da API Brevo. status={}, response={}",
                     ex.getStatusCode(),
@@ -511,13 +506,6 @@ public class MailService {
                 ? ""
                 : value.trim();
     }
-
-    /*
-     * Objetos enviados para a API da Brevo.
-     *
-     * NON_EMPTY evita mandar replyTo nulo ou uma lista
-     * vazia de anexos.
-     */
 
     @JsonInclude(JsonInclude.Include.NON_EMPTY)
     private record BrevoEmailRequest(

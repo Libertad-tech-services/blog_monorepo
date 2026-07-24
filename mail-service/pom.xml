@@ -9,7 +9,7 @@
 		<relativePath/>
 	</parent>
 	<groupId>br.com.libertadfacilities</groupId>
-	<artifactId>blog</artifactId>
+	<artifactId>mail</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
 	<name>mail-service</name>
 	<description>API de e-mail da libertad comercial e serviços</description>

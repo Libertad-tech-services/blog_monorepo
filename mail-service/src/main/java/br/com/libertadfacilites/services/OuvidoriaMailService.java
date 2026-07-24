@@ -253,11 +253,6 @@ public class OuvidoriaMailService {
                         "A Brevo não confirmou o envio do e-mail."
                 );
             }
-
-            /*
-             * Registre apenas o ID técnico.
-             * Não coloque a descrição ou os dados pessoais no log.
-             */
             log.info(
                     "Manifestação enviada à Ouvidoria. messageId={}",
                     response.messageId()
@@ -292,10 +287,6 @@ public class OuvidoriaMailService {
             OuvidoriaRequest request,
             boolean identificada
     ) {
-        /*
-         * Uma manifestação anônima nunca deve expor um e-mail
-         * por meio do campo Reply-To.
-         */
         if (!identificada
                 || !isEmailValido(request.email())) {
             return null;
@@ -330,14 +321,6 @@ public class OuvidoriaMailService {
         String tipo = labelTipoManifestacao(
                 request.tipoManifestacao()
         );
-
-        /*
-         * Não coloque a descrição ou o assunto informado
-         * pelo denunciante no título do e-mail.
-         *
-         * O título pode aparecer em notificações, celulares,
-         * caixas compartilhadas e sistemas de monitoramento.
-         */
         return "[Ouvidoria LCS] Nova manifestação - " + tipo;
     }
 
