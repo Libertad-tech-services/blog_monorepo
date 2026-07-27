@@ -16,6 +16,10 @@ import java.util.function.Function;
 @Component
 public class JwtService {
 
+    private static final String TOKEN_TYPE_CLAIM = "type";
+    private static final String ACCESS_TOKEN_TYPE = "access";
+    private static final String TWO_FACTOR_PENDING_TOKEN_TYPE = "2fa-pending";
+
     @Value("${jwt.secret}")
     private String secret;
 
@@ -28,6 +32,20 @@ public class JwtService {
 
         return Jwts.builder()
                 .setSubject(userDetails.getUsername())
+                .claim(TOKEN_TYPE_CLAIM, ACCESS_TOKEN_TYPE)
+                .setIssuedAt(now)
+                .setExpiration(expiryDate)
+                .signWith(getSignInKey())
+                .compact();
+    }
+
+    public String generateTemporaryTwoFactorToken(UserDetails userDetails) {
+        Date now = new Date();
+        Date expiryDate = new Date(now.getTime() + 5 * 60 * 1000);
+
+        return Jwts.builder()
+                .setSubject(userDetails.getUsername())
+                .claim(TOKEN_TYPE_CLAIM, TWO_FACTOR_PENDING_TOKEN_TYPE)
                 .setIssuedAt(now)
                 .setExpiration(expiryDate)
                 .signWith(getSignInKey())
@@ -38,51 +56,73 @@ public class JwtService {
         return extractClaim(token, Claims::getSubject);
     }
 
-    public boolean isTokenExpired(String token) {
-        try {
-            return !extractClaim(token, Claims::getExpiration).before(new Date());
-        } catch (JwtException e) {
-            return false;
-        }
-    }
-
-    public boolean isTokenValid(String token, UserDetails userDetails) {
-        try {
-            String username = extractUsername(token);
-            return username.equals(userDetails.getUsername()) && isTokenExpired(token);
-        } catch (JwtException e) {
-            return false;
-        }
-    }
-
-    public String generateTemporaryTwoFactorToken(UserDetails userDetails) {
-        Date now = new Date();
-        Date expiryDate = new Date(now.getTime() + 5 * 60 * 1000);
-
-        return Jwts.builder()
-                .setSubject(userDetails.getUsername())
-                .claim("type", "2fa")
-                .setIssuedAt(now)
-                .setExpiration(expiryDate)
-                .signWith(getSignInKey())
-                .compact();
-    }
-
-    public boolean isTemporaryTwoFactorToken(String token) {
-        String type = extractAllClaims(token).get("type", String.class);
-        return "2fa".equals(type) && isTokenExpired(token);
-    }
-
     public String extractUsernameFromAnyToken(String token) {
         return extractUsername(token);
     }
 
-    private <T> T extractClaim(String token, Function<Claims, T> resolver) throws JwtException {
-        Claims claims = extractAllClaims(token);
-        return resolver.apply(claims);
+    public boolean isTokenExpired(String token) {
+        try {
+            return extractClaim(token, Claims::getExpiration)
+                    .before(new Date());
+        } catch (JwtException exception) {
+            return true;
+        }
     }
 
-    private Claims extractAllClaims(String token) throws JwtException {
+    public boolean isTokenValid(
+            String token,
+            UserDetails userDetails
+    ) {
+        try {
+            String username = extractUsername(token);
+
+            return username.equals(userDetails.getUsername())
+                    && isAccessToken(token);
+        } catch (JwtException exception) {
+            return false;
+        }
+    }
+
+    public boolean isAccessToken(String token) {
+        try {
+            return hasTokenType(token, ACCESS_TOKEN_TYPE)
+                    && !isTokenExpired(token);
+        } catch (JwtException exception) {
+            return false;
+        }
+    }
+
+    public boolean isTemporaryTwoFactorToken(String token) {
+        try {
+            return hasTokenType(
+                    token,
+                    TWO_FACTOR_PENDING_TOKEN_TYPE
+            ) && !isTokenExpired(token);
+        } catch (JwtException exception) {
+            return false;
+        }
+    }
+
+    private boolean hasTokenType(
+            String token,
+            String expectedType
+    ) {
+        String tokenType = extractAllClaims(token)
+                .get(TOKEN_TYPE_CLAIM, String.class);
+
+        return expectedType.equals(tokenType);
+    }
+
+    private <T> T extractClaim(
+            String token,
+            Function<Claims, T> resolver
+    ) throws JwtException {
+        return resolver.apply(extractAllClaims(token));
+    }
+
+    private Claims extractAllClaims(String token)
+            throws JwtException {
+
         return Jwts.parserBuilder()
                 .setSigningKey(getSignInKey())
                 .build()

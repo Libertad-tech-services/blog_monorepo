@@ -50,11 +50,17 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/budget-requests").permitAll()
                         .requestMatchers("/v3/api-docs/**",
                                         "/swagger-ui/**",
-                                        "/swagger-ui.html",
-                                        "/api/auth/**"
+                                        "/swagger-ui.html"
                                        ).permitAll()
-                                .requestMatchers("/api/admin/**").hasAuthority("ADMIN")
-                                .anyRequest().permitAll()
+                        .requestMatchers(
+                                HttpMethod.POST,
+                                "/api/auth/login",
+                                "/api/auth/login/2fa"
+                        ).permitAll()
+                        .requestMatchers("/api/admin/**")
+                        .hasAuthority("ADMIN")
+                        .anyRequest()
+                        .permitAll()
                 ).sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authenticationProvider(authenticationProvider())
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);

@@ -45,6 +45,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
             jwt = authHeader.substring(7);
 
+            if (!jwtService.isAccessToken(jwt)) {
+                filterChain.doFilter(request, response);
+                return;
+            }
+
             try {
                 userEmail = jwtService.extractUsername(jwt);
             } catch (JwtException e) {
