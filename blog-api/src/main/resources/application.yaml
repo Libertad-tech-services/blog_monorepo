@@ -57,6 +57,10 @@ app:
   blog-admin-url: ${BLOG_ADMIN_URL}
   budget:
     recipient: ${BUDGET_RECIPIENT_EMAIL}
+  initial-admin:
+    email: ${ADMIN_EMAIL}
+    password: ${ADMIN_PASSWORD}
+    name: ${ADMIN_NAME}
 
 management:
   endpoints:
