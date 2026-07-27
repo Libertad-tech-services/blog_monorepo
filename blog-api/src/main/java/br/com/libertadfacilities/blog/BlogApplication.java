@@ -18,11 +18,4 @@ public class BlogApplication {
 		Dotenv.configure().ignoreIfMissing().load();
 		SpringApplication.run(BlogApplication.class, args);
 	}
-
-	@Bean
-	CommandLineRunner generatePassword(PasswordEncoder encoder) {
-		return args -> {
-			System.out.println(encoder.encode("admin123"));
-		};
-	}
 }
