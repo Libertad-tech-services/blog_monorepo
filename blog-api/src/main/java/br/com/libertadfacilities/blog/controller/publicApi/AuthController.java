@@ -27,12 +27,6 @@ public class AuthController {
     private final UserService userService;
     private final Logger log = LoggerFactory.getLogger(AuthController.class);
 
-    @PostMapping("/register")
-    public ResponseEntity<Void> register(@RequestBody User user){
-        userService.createUser(user);
-        return ResponseEntity.status(HttpStatus.CREATED).build();
-    }
-
     @PostMapping("/login")
     public ResponseEntity<LoginResponse> login(@RequestBody @Valid AuthRequest request){
         return ResponseEntity.ok(authService.login(request));
